@@ -32,8 +32,7 @@ public class FileManagerController {
             value = "/uploadFile",
             consumes = {MediaType.MULTIPART_FORM_DATA_VALUE}  // Note the consumes in the mapping
     )
-
-    public UploadFileResponse uploadFile(@RequestParam("file") MultipartFile file) {
+    public UploadFileResponse uploadFile(@RequestParam("file") MultipartFile file)  throws IOException{
         String fileName = fileManagerService.storeFile(file);
 
         String fileDownloadUri = ServletUriComponentsBuilder.fromCurrentContextPath()
@@ -67,4 +66,12 @@ public class FileManagerController {
                 .body(resource);
     }
 
+    @DeleteMapping("/deleteFile/{fileName:.+}")
+    public ResponseEntity<String>  deleteFile(@PathVariable  String fileName){
+
+        fileManagerService.deleteFile(fileName);
+
+        return ResponseEntity.ok(fileName);
+
+    }
 }

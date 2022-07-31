@@ -19,11 +19,16 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
 
 @Service
 public class FileManagerServiceImpl implements FileManagerService {
 
     private final Path fileStorageLocation;
+
+    private static String [] extensionList = {"png", "jpeg", "jpg", "docx", "pdf", "xlsx"};
 
     @Autowired
     public FileManagerServiceImpl(FileManagerProperties fileManagerProperties) {
@@ -42,41 +47,42 @@ public class FileManagerServiceImpl implements FileManagerService {
 
 
     @Override
-    public String storeFile(MultipartFile file) {
+    public String storeFile(MultipartFile file) throws IOException{
+
 
         // Normalize file name
         String fileName = StringUtils.cleanPath(file.getOriginalFilename());
 
-        try {
-            // Check if the file's name contains invalid characters
-            if(fileName.contains("..")) {
-                throw new FileManagerException("Sorry! Filename contains invalid path sequence " + fileName);
-            }
-
-            // Copy file to the target location (Replacing existing file with the same name)
-            Path targetLocation = this.fileStorageLocation.resolve(fileName);
-            Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
-            FileStore fileStore= new FileStore();
-
-            fileStore.setFileName(file.getName());
-            fileStore.setFileUploadDirectory(this.fileStorageLocation.toString());
-            fileStore.setSize(file.getSize());
-            fileStore.setFileExtension(file.getContentType());
-
-            fileStoreRepository.save(fileStore);
-            return fileName;
-        } catch (IOException ex) {
-            throw new FileManagerException("Could not store file " + fileName + ". Please try again!", ex);
+        String[] fileFrags = file.getOriginalFilename().split("\\.");
+        String extension = fileFrags[fileFrags.length-1];
+        // Check if the file's name contains invalid characters
+        if(fileName.contains("..")) {
+            throw new FileManagerException("Sorry! Filename contains invalid path sequence " + fileName);
+        }
+        else if ((!Arrays.asList(extensionList).contains(extension))) {
+            throw new FileManagerException("File extension is not acceptable file: " + fileName);
         }
 
+        // Copy file to the target location (Replacing existing file with the same name)
+        Path targetLocation = this.fileStorageLocation.resolve(fileName);
+        Files.copy(file.getInputStream(), targetLocation, StandardCopyOption.REPLACE_EXISTING);
+        FileStore fileStore= new FileStore();
+
+        fileStore.setFileName(fileName);
+        fileStore.setFileUploadDirectory(this.fileStorageLocation.toString());
+        fileStore.setSize(file.getSize());
+        fileStore.setFileExtension(file.getContentType());
+
+        fileStoreRepository.save(fileStore);
+        return fileName;
     }
 
     @Override
-    public Resource loadFileAsResource(String fileName)  {
+    public Resource loadFileAsResource(String fileName) {
         try {
             Path filePath = this.fileStorageLocation.resolve(fileName).normalize();
             Resource resource = new UrlResource(filePath.toUri());
-            if(resource.exists()) {
+            if (resource.exists()) {
                 return resource;
             } else {
                 throw new RequestedFileNotFoundException("File not found " + fileName);
@@ -86,4 +92,29 @@ public class FileManagerServiceImpl implements FileManagerService {
         }
 
     }
+
+    @Override
+    public void deleteFile(String fileName) {
+
+        Optional<FileStore> fileRecord = fileStoreRepository.findByFileName(fileName);
+        if (!fileRecord.isPresent()){
+            throw new RequestedFileNotFoundException("File not found " + fileName);
+        }
+        Long fileId = fileRecord.get().getId();
+
+        Path filePath;
+        filePath = this.fileStorageLocation.resolve(fileName).normalize();
+        try {
+            boolean fileDeleted = Files.deleteIfExists(filePath);
+            if (fileDeleted) {
+                fileStoreRepository.deleteById(fileId);
+            }
+
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
+
+
+    }
+
 }

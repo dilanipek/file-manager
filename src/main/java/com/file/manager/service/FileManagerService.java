@@ -6,7 +6,9 @@ import org.springframework.web.multipart.MultipartFile;
 import java.io.IOException;
 
 public interface FileManagerService {
-    public String storeFile(MultipartFile file);
+     String storeFile(MultipartFile file) throws IOException;
 
-    public Resource loadFileAsResource(String fileName) throws IOException;
+     Resource loadFileAsResource(String fileName) throws IOException;
+
+     void deleteFile(String fileName);
 }
