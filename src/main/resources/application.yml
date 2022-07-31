@@ -1,0 +1,9 @@
+spring:
+  application:
+    name: file-api
+  jpa:
+    hibernate:
+      ddl-auto: create
+  datasource:
+    url: jdbc:mysql://mysql-db2:3306/fileDb?characterEncoding=UTF-8&serverTimezone=UTC&createDatabaseIfNotExist=true
+
